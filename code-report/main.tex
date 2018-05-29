@@ -1,0 +1,54 @@
+% !TeX root = main.tex
+% KOMA-class pour utiliser avec classicthesis
+\documentclass[11pt,a4paper,twoside,openright,titlepage,
+               headinclude,fleqn,footinclude,BCOR5mm,
+               numbers=noenddot,cleardoublepage=empty,
+               tablecaptionabov]{scrbook}
+
+% Configuration de classicthesis
+\input{config/classicthesis-config.tex}
+
+% Préambule
+\input{config/preamble.tex}
+\addbibresource{bib/Bibliography.bib}
+
+\begin{document}
+	% Règle les problèmes d'espace vertical
+	\raggedbottom
+	% Le document sera en français
+	\selectlanguage{french}
+    
+    % Page de garde
+    \input{frontcover}
+    
+    % Préambule
+    \frontmatter
+    \input{abstract}
+    \tableofcontents
+    
+    % Corps du rapport
+    \mainmatter
+    \input{chap1}
+    \input{chap2}
+    \input{chap3}
+    \input{chap4}
+    
+    % Conclusion
+    \input{conclusion}
+    
+    % Annexes
+    \appendix
+    \input{appendix}
+    
+    % Liste des figures	
+	\cleardoublepage\pdfbookmark[0]{Liste des figures}{log}
+	\listoffigures
+    
+    % Liste des tableaux
+	\cleardoublepage\pdfbookmark[0]{Liste des tables}{tbls}
+	\listoftables
+    
+    % Bibliographie
+	\nocite{*} % Afficher toutes les références
+	\printbibliography
+\end{document}

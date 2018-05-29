@@ -1,0 +1,105 @@
+% Améliorations de classisthesis
+\usepackage{arsclassica}
+
+% Import des packages
+\usepackage[a4paper,hmarginratio=1:1]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{calc}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{lipsum}
+\usepackage{shapepar}
+\usepackage{amsmath} 
+\usepackage{pifont}
+\usepackage[eulerchapternumbers,subfig,beramono,eulermath,pdfspacing,listings]{classicthesis}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{pdfpages}
+\usepackage{fancyvrb}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{tcolorbox}
+
+% Configuration de l'agencement relatif à la langue française
+\index{babel}
+\index{french}
+\frenchspacing
+\renewcommand*{\FrenchLabelItem}{\color{halfgray}$\bullet$}
+
+% Abréviations
+\newcommand{\ie}{\textit{i.e.~}}
+\newcommand{\eg}{\textit{e.g.~}}
+
+% Espacement entre les paragraphes
+\baselineskip=12pt
+\setlength{\parskip}{\baselineskip}
+
+% Réduction de l'espacement après les sections, sous-sections, et sous-sous-sections.
+\titlespacing\chapter{0pt}{0pt plus 4pt minus 2pt}{25pt plus 2pt minus 2pt}
+\titlespacing\section{0pt}{0pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+\titlespacing\subsection{0pt}{0pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+\titlespacing\subsubsection{0pt}{0pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+
+% Esthétique générale du code
+% Nouvelles couleurs pour le code
+\definecolor{comments}{RGB}{116,113,94}
+\definecolor{bg}{RGB}{49,55,57}
+\definecolor{kw}{RGB}{249,39,114}
+\definecolor{var}{RGB}{102,217,238}
+\definecolor{string}{RGB}{230,218,116}
+\definecolor{digit}{RGB}{174,129,255}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.6}
+
+% Configuration de listings
+\usepackage{listings}
+\lstset{numbers=left, numberstyle=\tiny, breaklines=true, basicstyle=\small, basicstyle=\ttfamily,columns=fullflexible, showstringspaces=false, captionpos=b, frame=TrBl, } 
+
+% Base des règles du code
+\lstset{upquote=true,keywordstyle=\color{var}\ttfamily,stringstyle=\color{string}\ttfamily,backgroundcolor=\color{bg},rulecolor=\color{bg}, commentstyle=\color{comments}\ttfamily,emph={int,char,double,float,unsigned,return,true,false},emphstyle={\color{kw}},basicstyle=\ttfamily\footnotesize\color{white},tabsize=3,literate=
+	*{0}{{{\color{digit}0}}}1
+	{1}{{{\color{digit}1}}}1
+	{2}{{{\color{digit}2}}}1
+	{3}{{{\color{digit}3}}}1
+	{4}{{{\color{digit}4}}}1
+	{5}{{{\color{digit}5}}}1
+	{6}{{{\color{digit}6}}}1
+	{7}{{{\color{digit}7}}}1
+	{8}{{{\color{digit}8}}}1
+	{9}{{{\color{digit}9}}}1
+	{.0}{{{\color{digit}.0}}}1
+	{.1}{{{\color{digit}.1}}}1
+	{.2}{{{\color{digit}.2}}}1
+	{.3}{{{\color{digit}.3}}}1
+	{.4}{{{\color{digit}.4}}}1
+	{.5}{{{\color{digit}.5}}}1
+	{.6}{{{\color{digit}.6}}}1
+	{.7}{{{\color{digit}.7}}}1
+	{.8}{{{\color{digit}.8}}}1
+	{.9}{{{\color{digit}.9}}}1
+}
+
+% Box de couleur
+\definecolor{PimpedBrown}{RGB}{245,222,179}
+\definecolor{PimpedRed}{RGB}{222,102,102}
+\newtcolorbox{PimpedBox}{colback=PimpedBrown,colframe=brown}
+\newtcolorbox{WarningBox}{colback=PimpedRed,colframe=brown}
+
+% JavaScript
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break},
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]"
+}
+
+% Configuration du symbole Warning
+%Source :https://tex.stackexchange.com/questions/159669/how-to-print-a-warning-sign-triangle-with-exclamation-point
+\newcommand\Warning{%
+ \makebox[1.4em][c]{%
+ \makebox[0pt][c]{\raisebox{.1em}{\small!}}%
+ \makebox[0pt][c]{\color{red}\Large$\bigtriangleup$}}}%

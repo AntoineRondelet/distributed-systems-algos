@@ -1,0 +1,43 @@
+ \section{Introduction à CEPH}
+ 
+Ceph\footnote{Ce nom tire son origine du surnom donné à certains céphalopodes, et tire son origine du grec ancien. Ce nom suggère en particulier la construction extrêmement parallèle de Ceph.} est la solution de stockage distribuée qui fait l'objet de la suite de cette étude. Elle tire son origine des travaux de S. Weil pour sa thèse ; ce dernier continuera à l'améliorer à plein temps par la suite. 
+
+Ceph vise à s'imposer comme la solution moderne pour le stockage distribué et se définit comme \textbf{fiable}, \textbf{performant} et \textbf{évolutif}. Notons que Ceph est totalement \textbf{open-source}. Nous ne présentons pas dans cette section ses concepts sous-jacents, mais seulement quelques grandes caractéristiques.
+
+\subsection{Caractéristiques}
+
+\subsubsection{Élimination des points uniques de défaillance}
+
+La suppression des points uniques de défaillance (\textit{single point of failure} ou SPOF en anglais) est l'une des pierres angulaires de Ceph. Un point unique de défaillance est un élément d'un système dont le reste du système dépend. En d'autres termes, une panne de cet élément entraîne l'arrêt du système.
+
+C'est le cas des systèmes centralisés, mais aussi de certaines solutions de stockage distribuées. Ceph vise donc la très haute disponibilité ainsi qu'une tolérance à de nombreuses pannes sur des composants quelconques.
+
+En particulier, la suppression complète des composants uniques permettant de calculer l'emplacement des données stockées confère à Ceph une grande fiabilité.
+
+\subsubsection{Utilisation de l'intelligence collective}
+
+Une autre des forces de Ceph est l'idée que chaque composante du stockage est une unité \textit{potentiellement intelligente}. En d'autres termes, le fait de posséder un processeur, une interface réseau et de la mémoire permet d'exécuter d'autres actions que la simple réponse à des ordres de lecture et d'écriture.
+
+Ceph s'attache alors à déporter au maximum les algorithmes utilisés au sein même des composantes de stockage, afin que tous puissent participer à l'effort collectif, et par là même, réduire les coûts et améliorer la performance.
+
+\subsubsection{Différents niveaux de stockage}
+
+Ceph propose d'utiliser une même grappe de composantes de stockage pour gérer trois niveaux de manière \textbf{unifiée} :
+
+\begin{itemize}
+	\item Le niveau \textbf{bloc}, où le système de stockage est vu comme un unique \textbf{périphérique bloc}, à la manière d'un disque dur local. Il est alors possible de lire et d'écrire de façon standard sur le périphérique et la réplication est assurée automatiquement.
+    \item Le niveau \textbf{objet}, plus traditionnel, où une analogie existe avec l'idée de base de données NoSQL. Chaque donnée est manipulée comme un objet et permet d'abstraire le système de stockage \textit{effectivement} utilisé. Notons que Ceph est compatible avec des solutions propriétaires comme Amazon S3 ou Swift.
+    \item Le niveau \textbf{système de fichiers}, proposant une interface compatible POSIX.
+\end{itemize}
+
+Ces trois niveaux étant unifiés au sein du même système, il est possible de mutualiser les ressources de Ceph pour des utilisations très complémentaires.
+
+\subsection{Utilisateurs}
+
+Il n'existe \textit{plus} de liste publique d'entreprises ou d'organismes utilisant Ceph. Cependant, Ceph est près pour la mise en production à tous les niveaux, plus particulièrement depuis que CephFS -- permettant de mettre en place le niveau système de fichiers -- est stable.
+
+On peut tout de même noter qu'OVH utilise Ceph dans la quasi-totalité de ses offres de stockage. D'autres acteurs majeurs tels que Yahoo, CloudWatt et Orange utilisent Ceph en production. Des entreprises telles que Deutsche Telekom, le Crédit Mutuel, Thales et Ubisoft s'intéressent de près à Ceph.
+
+Cet intérêt soutenu de l'industrie renforce la crédibilité de Ceph en tant qu'outil moderne, adapté et performant.
+
+Notons enfin que le CERN a validé Ceph comme futur de son architecture informatique, un système virtualisé et redondant. En particulier, les données incroyablement massives du LHC, par exemple, génèrent 30 pétaoctets de données par an. Ceph peut gérer jusqu'à l'exaoctet, et les tests du CERN ont démontré sa robustesse et sa fiabilité.

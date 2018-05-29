@@ -1,0 +1,29 @@
+\section{Les enjeux du stockage distribué}
+
+Comme nous l'avons vu, le stockage distribué répond essentiellement à la direction que prennent les technologies modernes. Dans cette section, nous exposons les différents enjeux auxquels répond le stockage distribué.
+
+\subsection{Haute disponibilité et rapidité}
+
+La \textbf{haute disponibilité} se définit comme la période temporelle durant laquelle un service est disponible et \textit{utilisable}, et par extension le temps nécessaire au système pour répondre à la requête d'un utilisateur. Un système est dit \textbf{hautement disponible} s'il est suffisamment robuste face aux pannes, lui permettant de fonctionner en cas de problèmes internes.
+
+Le stockage distribué adresse -- plus ou moins selon les cas -- cette problématique. En particulier, la présence de plusieurs machines permet de tolérer certaines pannes, d'autres prenant alors le relais. De plus, l'utilisation de la redondance ou de la réplication \footnote{Il s'agit du fait de disposer de plusieurs copies de la même donnée. Les solutions de stockage distribué mettent quasiment toutes en place cette solution, en conservant des copies de la donnée (\textit{réplicats}) sur plusieurs machines physiques.} tolère les défaillances mémoire sans nécessiter d'intervention humaine, comme on peut le voir avec les mécanismes de \textit{backup} des systèmes centralisés.
+
+Pareillement, les solutions de stockage centralisées, même à plusieurs, échouent à égaler le temps nécessaire pour satisfaire une requête des systèmes distribués. La centralisation induit systématiquement un goulot d'étranglement à un certain point.
+    
+\subsection{Mise à l'échelle et flexibilité}
+
+Les systèmes distribués permettent intrinsèquement une mise à l'échelle (en anglais, \textit{scalability}). En effet, les systèmes étant conçus pour résister à des pannes, comme l'extinction transitoire d'une des composantes, il est par là même conçu pour tolérer l'ajout d'autres de ces composantes.
+
+La modification de l'infrastructure du système, que ce soit au niveau du nombre de composantes ou de leurs configurations, est alors beaucoup plus aisée qu'avec une architecture centralisée. Aussi, ces composantes peuvent avoir plusieurs rôles en plus du stockage, leur permettant d'être utilisées dans d'autres applications si besoin.
+
+Ce besoin est fondamental, car les architectures modernes sont amenées à évoluer très rapidement pour satisfaire la demande. L'industrie se tourne en particulier de plus en plus vers des outils permettant une mise à l'échelle \og{}automatique\fg{}.
+
+\subsection{Coûts}
+
+Aujourd'hui, des quantités phénoménales de données sont générées a chaque instant, et nécessitent d'être stockées -- au moins l'espace de quelques instants -- pour être analysées. Cette évolution fulgurante de la quantité de données à traiter va continuer avec l'ère des \textbf{objets connectés}.
+
+Dans le cadre d'un système centralisé, les prix augmentent considérablement dès lors que la capacité de stockage est importante. Au contraire, les systèmes distribués utilisent généralement des machines \og{}classiques\fg{}, \ie contenant un processeur, des disques et une interface réseau. Ces machines sont parfois capables de participer à l'intelligence collective du système.
+
+Au total, le coût de l'ensemble de ces machines est bien inférieur au coût d'une \og{}super-machine\fg{} de stockage et de contrôle pour des performances égales. 
+
+Enfin, l'investissement dans un système distribué n'est pas perdu si le besoin de stockage diminue, car les composantes du système sont ré-utilisables pour toute autre application, à l'inverse des solutions hautement spécialisées et centralisées.

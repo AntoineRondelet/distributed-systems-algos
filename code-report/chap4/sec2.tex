@@ -1,0 +1,143 @@
+\section{Reprise sur erreur et tolérance aux pannes}
+
+Dans cette section, nous montrons un cas d'exemple où Ceph est capable de mitiger les erreurs produites.
+
+\subsection{Outils de monitoring de Ceph}
+
+\subsubsection{Monitoring des OSD}
+
+On peut visualiser l'état des OSD du cluster comme suit :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd tree
+  $ ceph health [detail]
+\end{lstlisting}
+
+On a donc accès aux informations suivantes :
+
+\begin{itemize}
+    \item \textit{Nombre d'OSD up} : Les OSD actifs qui ont été déclaré au(x) moniteur(s) ;
+    \item \textit{Nombre d'OSD down} : les OSD considérés non fonctionnel dans le cluster qui ont été déclarés au(x) moniteur(s) ;
+     \item \textit{Nombre d'OSD in} : Les OSD inclus dans le cluster (peuvent être non fonctionnel) ;
+     \item \textit{Nombre d'OSD out} : Les OSD en dehors du cluster (peuvent être fonctionnel) ;
+     \item \textit{Weight} : L'importance d'un OSD dans le cluster (entre 0 et 1, par défaut a 1).
+    \end{itemize}
+    
+    En pratique, le cas problématique est celui d'un OSD \textbf{in} et \textbf{down}. En d'autres termes, l'OSD est présent dans le cluster mais non fonctionnel. Le cas typique est un OSD non fonctionnel suite a un problème matériel. Le cas de la déconnexion d'un OSD sera traitée dans la section \ref{deco}.
+    
+\subsubsection{Monitoring des pools}
+
+Pour lister les pools, on peut utiliser la commande suivante :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+    $ ceph osd lspools
+\end{lstlisting}
+    Pour lister les objets existants dans une pool, on peut utiliser la commande suivante :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+    $ rados -p {pool name} ls
+\end{lstlisting}
+	
+
+\subsubsection{Monitoring des données}
+Pour afficher en temps réel le peering des données, on peut utiliser la commande suivante :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+	$ ceph -w
+\end{lstlisting}
+Et pour connaître la localisation d'un objet dans une pool, \ie quels OSD le prennent en charge :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+	$ ceph osd map {poolname} {filename}
+\end{lstlisting}
+
+
+\subsection{Déconnexion d'un osd}\label{deco}
+
+\subsubsection{Déconnexion et reconnexion manuelle}
+
+\lstset{emph={ceph,sudo}}
+Dans le but de réaliser une maintenance, il peut être nécessaire de retirer manuellement un OSD du cluster (OSD up et out) puis de l’arrêter pour pouvoir travailler dessus.
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd out {osd-num} #force the osd out
+  $ sudo /etc/init.d/ceph stop osd.{osd-num} #stop osd
+\end{lstlisting}
+
+Dans ce cas, la crush map sera recalculée car l'état du cluster n'est plus le même (\textit{OSD out}). Lors d'une telle manipulation, il faut impérativement vérifier que le cluster dispose de d'un volume de stockage suffisant pour compenser la perte temporaire d'un OSD.
+
+Après la maintenance, il faut remettre l'OSD en place, pour cela il faut le redémarrer puis le replacer dans le cluster.
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ sudo start ceph-osd id={osd-num} #restart osd from monitor
+  $ ceph osd in {osd-num} #force the osd in
+\end{lstlisting}
+
+Dans le cas ou le volume des données est important, il peut être judicieux d'intégrer l'OSD au fur et a mesure. En effet, il est possible de choisir le poids d'un OSD dans la crush map. Cela permet d'augmenter son importance dans le cluster au fur et a mesure de son intégration.
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd crush reweight {osd-id} .{poids entre 0  et 1.0}
+\end{lstlisting}
+Il est possible de visualiser le poids (\textit{weight}) des OSD via la commande suivante :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd tree
+\end{lstlisting}
+
+\subsubsection{Déconnexion accidentelle}
+
+À un moment indéterminé, il est possible qu'un OSD tombe en panne ou se retrouve déconnecté du réseau. Il peut être alors nécessaire d'utiliser les outils de monitoring pour évaluer l'état du cluster. Dans le cas ou un OSD est hors-service (\ie \textit{down}), il y aura un temps de latence avant que le cluster ne le considère \textit{out}.
+
+Pour configurer ce temps de latence (sachant qu'un intervalle de 0 empêchera l'OSD d'être marqué \textit{out}), il est possible d'utiliser la commande suivante :
+\vspace{3mm}
+\lstset{emph=mon}
+\begin{lstlisting}[language=bash]
+  $ mon osd down out interval = {delay}
+\end{lstlisting}
+
+Pour avoir des informations sur une erreur, il est possible de vérifier le réseau ou les logs de la machine :
+\vspace{3mm}
+\lstset{emph={cat, netstat}}
+\begin{lstlisting}[language=bash]
+  $ cat /var/log/ceph/{cluster-name}.log
+  $ netstat -s
+\end{lstlisting}
+
+Pour relancer un OSD, la procédure est la même que s'il avait été enlevé manuellement ; néanmoins, il faut prendre soin de ne pas réintégrer un OSD défectueux dans le cluster. À ce titre, il est nécessaire de savoir pourquoi il en a été exclu en premier lieu. Le code \ref{listings-reload} illustre cette manipulation.
+\vspace{3mm}
+\lstset{emph={ceph}}
+\begin{lstlisting}[language=bash,caption={Procédure de relancement d'un OSD.}, label=listings-reload]
+ceph osd set noout #permet d'empecher l'osd d'etre marque out (maintenance /flappy disk)
+ceph osd unset noout #suppr commande precedente
+
+ceph osd set noup      # prevent OSDs from getting marked up
+ceph osd set nodown    # prevent OSDs from getting marked down
+ceph osd unset noup
+ceph osd unset nodown
+
+\end{lstlisting}
+
+\subsubsection{Problèmes possibles}
+
+Des problèmes de connexion ou de lancement du démon \verb|ceph| peuvent parfois apparaître. Cela peut provoquer un drapeau \textit{out} ou \textit{down} sur un OSD pourtant parfaitement fonctionnel.
+
+La maintenance sur un ou plusieurs OSD peut aussi poser des risques.
+Pour éviter que cela implique la recréation de la crush map, il peut être nécessaire d'utiliser une des commandes suivantes :  
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+ceph osd set noout
+ceph osd set noin
+ceph osd set noup
+ceph osd set nodown
+\end{lstlisting}
+
+Ces commandes empêchent respectivement l'application du flag \textit{out}, \textit{in}, \textit{up} et \textit{down}. Cela veut dire qu'il est possible de forcer le système à considérer un OSD comme étant \textit{up} et \textit{in} même si celui-ci a été retiré. 
+
+Ces commandes sont là pour outrepasser les comportements automatiques de Ceph ; à ce titre, il est recommandé de les exécuter avec prudence car il est alors nécessaire de défaire ces drapeaux manuellement. Pour ce faire, il faut utiliser la commande \verb|unset| :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+ceph osd unset noout
+ceph osd unset noin
+ceph osd unset noup
+ceph osd unset nodown
+\end{lstlisting}

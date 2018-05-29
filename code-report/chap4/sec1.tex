@@ -1,0 +1,398 @@
+\section{Installation et utilisation}
+
+\subsection{Architecture d'un cluster CEPH}
+
+La première étape nécessaire pour correctement préparer l'installation d'un cluster CEPH est de connaître l'architecture à réaliser.
+
+Il existe 3 types de nœuds :
+
+\begin{itemize}
+	\item \textit{Object Storage Device (OSD)} : Il s'agit d'un nœud de stockage, qui s'occupe de la réplication et la reconstruction des données. Il infirme aussi le moniteur de la santé des autres OSD sur le réseau. Un minimum de \textbf{2 nœuds} est nécessaire au sein d'un cluster. 
+    
+    \item \textit{Moniteur} : Il maintient à jour les cartes du cluster, qui sont la carte des OSDs, la carte des \og{}placements groups\fg{}, ainsi que la carte CRUSH. Un \textbf{nombre impair de nœuds}  est recommandé\footnote{Source : \url{http://docs.ceph.com/docs/master/rados/operations/add-or-rm-mons/} et les considérations sur les élections}.
+    
+    \item \textit{MetaData Server (MDS)} : Il sert à stocker les méta-données relatives au système de stockage CephFS. Ils ne sont donc utiles que si ce dernier est utilisé. Par ailleurs, le support des MDS étant actuellement expérimental, il ne peut y avoir qu'un seul nœud MDS.
+\end{itemize}
+
+Dans le cadre de ce tutoriel nous disposons de 6 machines. Nous avons décidé par ailleurs d'utiliser CephFS comme système de fichiers, ce qui implique l'ajout d'un nœud MDS. Le tableau \ref{tableau_cluster} résume la configuration du cluster.
+
+\begin{table}[H]
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|}
+       \hline
+       Nom du nœud & Nom d'utilisateur Ceph & Type de nœud & Adresse IP\\
+       \hline
+       mon1 & ceph07 & Moniteur &  172.23.2.17 \\
+       \hline
+       mds1 & ceph08 & MDS &  172.23.2.18 \\
+       \hline
+       osd0 & ceph09 & OSD &  172.23.2.19 \\
+       \hline
+       osd1 & ceph10 & OSD &  172.23.2.20 \\
+       \hline
+       osd2 & ceph11 & OSD &  172.23.2.21 \\
+       \hline
+       osd3 & ceph12 & OSD &  172.23.2.22 \\
+       \hline
+    \end{tabular}
+  \end{center}
+  \caption{Tableau récapitulatif de l'architecture du cluster.}
+  \label{tableau_cluster}
+\end{table}
+
+\begin{WarningBox}
+Une machine doit être considérée comme étant la \textbf{machine administrateur} : il s'agira de la seule machine utilisée après l'étape de mise en place du serveur SSH. Il peut s'agir de n'importe quelle machine, à la condition qu'elle soit connectée au même réseau que les autres. Lors de notre installation, ne disposant pas plus de machines, mon1 a fait office d'administrateur.
+\end{WarningBox}
+
+Il faut aussi prévoir des emplacements de stockage sur les OSD. Il est conseillé de prévoir des disques entiers dédiés au stockage de Ceph. Cependant, n'ayant à notre disposition qu'un unique disque par machine, nous avons décidé de dédier une partition par OSD au stockage Ceph, dans le cadre de la démonstration. Le tableau \ref{tableau_osd} récapitule la configuration de stockage de notre cluster.
+
+\begin{table}[H]
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|}
+       \hline
+       Nom du nœud & Chemin de la partition & Taille de la partition\\
+       \hline
+       osd0 & /dev/sdb4 & 30Go \\
+       \hline
+       osd1 & /dev/sdb3 & 30Go \\
+       \hline
+       osd2 & /dev/sdb3 & 30Go \\
+       \hline
+       osd3 & /dev/sdb3 & 30Go \\
+       \hline
+    \end{tabular}
+  \end{center}
+  \caption{Tableau descriptif des partitions allouées au cluster Ceph par OSD.}
+  \label{tableau_osd}
+\end{table}
+
+\newpage
+
+\subsection{Mise en place de l'infrastructure}
+
+Avant d'effectuer le déploiement de CEPH, il est nécessaire de configurer les différentes machines. Par ailleurs, il est à préciser que, dans le cas ou la machine administrateur n'est pas une machine du cluster, elle n'est pas considérée comme en faisant partie.
+
+%TODO expliquer le déploiement via ceph-deploy, notamment pour ssh.
+\subsubsection{Installation du système d'exploitation} 
+
+L'installation de Ceph se fait sur des machines disposant du noyau GNU/Linux. Nous utilisons personnellement la distribution \textit{Debian 8 (Jessie)}, toutefois le choix de celle-ci reste libre : d'autres distributions telles que CentOS et Ubuntu-Server peuvent être utilisées.
+
+Du fait que nous utilisons \textit{Debian 8}, il est nécessaire de mettre à jour le noyau dans une version plus récente (4.X ou plus). La procédure de mise à jour du noyau est détaillée à l'annexe \ref{annexe_noyau_install}.
+
+Pour plus d'informations sur les prérequis spécifiques à d'autres distributions, il est nécessaire de se référer à la page \og{}OS Recommendations\fg{} de la documentation officielle \footnote{Liste des systèmes d'exploitation recommandés : \url{http://docs.ceph.com/docs/master/start/os-recommendations/}}.
+
+\subsubsection{Configuration des interfaces réseau (NIC)}
+
+Le cluster CEPH nécessite que chaque nœud du cluster puisse communiquer avec les autres. Il faut donc s'assurer que chacune des machines possède une adresse unique sur le réseau. 
+
+La configuration est à appliquer \textbf{sur chaque machine du cluster} se trouve dans le fichier \verb|/etc/networks/interfaces|. Le code \ref{listing-config} montre cette configuration.
+\vspace{3mm}
+\lstset{morecomment=[l]{\#}}
+\lstinputlisting[caption={Configuration des machines du cluster.},label={listing-config}, emph={address, netmask, network, broadcast}]{chap4/nic_config.txt}
+
+\subsubsection{Configuration des noms d’hôte}
+
+Chaque machine du cluster doit pouvoir contacter les autres machines via un nom. Par ailleurs la machine administrateur n'a pas besoin d'être contactée mais doit connaître le nom de l'ensemble des machines. Pour permettre cela, nous allons éditer le fichier \verb|/etc/hosts| \textbf{sur chaque machine}.
+
+\begin{WarningBox}
+Il est nécessaire d'éditer le fichier avec les droits root. 
+\end{WarningBox}
+
+Les lignes ajoutées à la fin du fichier, pour notre cluster, sont visibles dans le code \ref{listings-hosts}.
+
+\vspace{3mm}
+\lstinputlisting[caption={Modification du fichier hosts.},label={listings-hosts}]{chap4/host_config.txt}
+
+\subsubsection{Configuration des utilisateurs Ceph}
+
+Pour le déploiement, la machine administrateur, via l'utilitaire \verb|ceph-deploy| va devoir accéder aux différentes machines sans utiliser de mot de passe. 
+
+Nous allons donc créer des utilisateurs pour chaque machine du cluster, à qui nous allons donner les accès à l'utilisateur root sans mot de passe.
+
+L'ensemble des étapes de relatives à la mise en place d'un utilisateur doivent donc être appliquées \textbf{sur chaque machine du cluster}. Aussi, le choix des noms d'utilisateur est libre, dans notre cas nous avons pris ceux présentés dans le tableau \ref{tableau_cluster}.
+
+Avant toute chose, il faut installer le paquet \verb|sudo|. Il permet, dans sa configuration, de donner un accès root sans mot de passe à un utilisateur.
+
+\vspace{3mm}
+\lstset{emph={su, apt, get, exit}}
+\begin{lstlisting}
+  $ su
+  $ apt-get install sudo
+  $ exit
+\end{lstlisting}
+
+La commande ci-dessous permet de créer un nouvel utilisateur, qui n'aura, par la suite, pas de mot de passe root.
+
+\begin{WarningBox}
+Il est possible d'utiliser l'utilisateur courant, au lieu de créer un nouvel utilisateur. Il faut être conscient que dans ce cas, l'utilisateur courant aura un accès root via la commande sudo sans mot de passe.
+\end{WarningBox}
+
+\vspace{3mm}
+\lstset{emph={sudo, useradd, passwd}}
+% TODO : commandes à tester
+\begin{lstlisting}
+  $ sudo useradd -d /home/<nom d'utilisateur> -m <nom d'utilisateur>
+  $ sudo passwd <nom d'utilisateur>
+\end{lstlisting}
+
+% TODO : commandes à tester
+Enfin, nous donnons un accès sudo sans mot de passe à notre utilisateur :
+
+\vspace{3mm}
+\lstset{language=bash,emph={echo, sudo, chmod, tee}}
+\begin{lstlisting}
+  $ echo "<nom d'utilisateur>  ALL = (root) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/<nom d'utilisateur>
+  $ sudo chmod 0440 /etc/sudoers.d/<nom d'utilisateur> 
+\end{lstlisting}
+
+% Il suffit maintenant de se connecter en tant que ce nouvel utilisateur pour le reste du tutoriel:
+% \begin{lstlisting}[language=bash]
+%   $ sudo -u <nom d'utilisateur> bash
+% \end{lstlisting}
+
+\subsubsection{Configuration SSH}
+
+Afin de permettre à \verb|ceph-deploy| d'accéder aux nœuds via SSH, il faut installer le paquet \verb|openssh-server| \textbf{sur chaque machine}, si cela n'est pas déjà fait :
+
+\vspace{3mm}
+\lstset{emph={su,apt,get,exit}}
+\begin{lstlisting}[language=bash]
+  $ su
+  $ apt-get install openssh-server
+  $ exit
+\end{lstlisting}
+
+Nous générons ensuite un jeu de clés SSH (privées/publiques) \textbf{depuis la machine administrateur}, dont nous transmettrons ensuite la clé publique à tous les nœuds afin de pouvoir s'y connecter sans mot de passe.
+
+\begin{WarningBox}
+Il est préférable de laisser l'ensemble des champs vides, il suffit donc d'appuyer sur entrée à chaque question.
+\end{WarningBox}
+
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ssh-keygen
+\end{lstlisting}
+
+Voici la commande à exécuter \textbf{depuis la machine administrateur}, pour transmettre la clé SSH publique \textbf{à chacun des nœuds du cluster} :
+
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ssh-copy-id <nom d-utilisateur>@<nom du noeud>
+\end{lstlisting}
+
+Dans notre cas cela donne :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ssh-copy-id ceph07@mon1
+  $ ssh-copy-id ceph08@mds1
+  $ ssh-copy-id ceph09@osd0
+  $ ssh-copy-id ceph10@osd1
+  $ ssh-copy-id ceph11@osd2
+  $ ssh-copy-id ceph12@osd3
+\end{lstlisting}
+
+La dernière étape de la configuration SSH est la création du fichier \verb|\~/.ssh/config| \textbf{sur l'ensemble des machines}, qu'il faut remplir comme montré dans le code \ref{listings-ssh}.
+
+\vspace{3mm}
+\lstinputlisting[caption={Configuration SSH.}, label={listings-ssh}]{chap4/ssh_config.txt}
+
+Puis il faut rendre le fichier non éditable, sauf pour l’utilisateur root :
+%TODO Vérifier la commande
+
+\vspace{3mm}
+\lstset{emph={su, chmod, exit}}
+\begin{lstlisting}[language=bash]
+  $ su
+  $ chmod 600 ~./ssh/config
+  $ exit
+\end{lstlisting}
+
+%\subsubsection{Configuration du pare-feu (Optionnel)}
+
+\subsubsection{Configuration du serveur NTP (Synchronisation de l'horloge)}
+Afin de garantir que horloges des nœuds soient synchronisées entre elles, il faut installer le paquet ntp.
+
+\begin{lstlisting}[language=bash]
+  $ sudo apt-get install ntp
+\end{lstlisting}
+\newpage
+
+\subsection{Installation de CEPH et mise en route}
+
+Dans cette partie, il va être question dans une première partie d'installer le paquet \verb|ceph-deploy|, permettant par la suite de déployer Ceph sur le cluster.
+
+\begin{WarningBox}
+L'intégralité des commandes qui vont suivre seront exécutées \textbf{sur la machine administrateur}.
+\end{WarningBox}
+
+\subsubsection{Installation du paquet ceph-deploy}
+
+Il faut tout d'abord ajouter le repository de Ceph aux sources du gestionnaire de paquet, puis mettre à jour la base de donnée de référencement des paquets, et enfin lancer l'installation de Ceph, le tout grâce aux commandes suivantes du code \ref{listings-ceph-deploy}.
+%TODO add .wgetrc proxy config (http & https) in root home directory
+
+\vspace{3mm}
+\lstset{emph={wget, echo, sudo, tee}}
+\begin{lstlisting}[language=bash,caption={Installation du paquet ceph-deploy},label={listings-ceph-deploy}]
+  $ wget -q -O- 'http://eu.ceph.com/keys/release.asc' | sudo apt-key add -
+  $ echo deb http://eu.ceph.com/debian-kraken/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
+  $ sudo apt-get update && sudo apt-get install ceph-deploy
+\end{lstlisting}
+
+\subsubsection{Déploiement}
+
+Il faut tout d'abord créer un dossier d'administration qui contiendra, entre autre, la configuration de notre cluster CEPH :
+
+\vspace{3mm}
+\lstset{emph={mkdir,cd}}
+\begin{lstlisting}[language=bash]
+  $ mkdir ceph-cluster
+  $ cd ceph-cluster
+\end{lstlisting}
+
+Nous exécutons ensuite la commande permettant de déclarer les moniteurs initiaux, il sont ainsi enregistré dans la configuration du cluster Ceph (\verb|ceph.conf|).
+
+Remarque : Il est possible de ne déclarer que le moniteur initial, et d'en ajouter d'autres par la suite.
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph-deploy new mon1
+\end{lstlisting}
+
+Dans le cas ou le nombre d'OSD est inférieur à 3, il faut modifier dans le fichier \verb|ceph.conf|, tel qu'indiqué dans le code \ref{listings-min-osd}.
+\lstset{keywordstyle=\ttfamily}
+\vspace{3mm}
+\begin{lstlisting}[caption={Congifuration de Ceph dans le cas d'un faible nombre d'OSD.},label={listings-min-osd}]
+  osd pool default size = 3
+  osd pool default min size = 2
+  osd crush chooseleaf type = 1 # Multi-node cluster in a single rack
+\end{lstlisting}
+
+On installe ensuite Ceph sur l'ensemble des machines, à part le nœud MDS. Il est important d'y spécifier le nœud administrateur pour qu'il bénéficie des commandes nécéssaires pour administrer le cluster.
+
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph-deploy install mon1 osd0 osd1 osd2 osd3
+\end{lstlisting}
+
+On ajoute ensuite les moniteurs initiaux (déclarés précédemment) dans le cluster, afin qu'ils forme un quorum et que les fichiers de clés puissent être générés. Plusieurs fichiers au format \verb|.keyring| sont donc normalement dans le dossier d'administration.
+
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph-deploy mon create initial
+\end{lstlisting}
+
+Le cluster est donc normalement créé. Néanmoins, nous n'avons pas encore indiqué les partitions de stockage des OSDs. Voici la commande à éxecuter :
+
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph-deploy osd prepare --fs-type btrfs {ceph-node}:/path/to/directory
+  $ ceph-deploy osd activate {ceph-node}:/path/to/directory
+\end{lstlisting}
+
+Dans notre configuration, cela donne pour l'OSD 0 :
+
+\vspace{3mm}
+\begin{lstlisting}
+  $ ceph-deploy osd prepare --fs-type btrfs osd0:/dev/sdb4
+  $ ceph-deploy osd activate osd4:/dev/sdb4
+\end{lstlisting}
+
+Pour pouvoir exécuter des commandes administrateur sur l'ensemble des sites, sans préciser la clé d'administration, ni le nom du site administrateur :
+
+Dans notre configuration, il s'agit de la commande suivante :
+\vspace{3mm}
+\begin{lstlisting}
+  $ ceph-deploy admin mon1 osd0 osd1 osd2 osd3
+\end{lstlisting}
+  
+  Cette commande ajoute, entre autre le fichier \verb|ceph.client.admin.keyring| dans le dossier \verb|/etc/| de chaque machine, ce fichier contient la clé d'administrateur. La commande ne configurant pas correctement les droits du fichier, il faut donc lancer la commande suivante \textbf{sur chaque machine}, elle donne un accès en lecture à l'utilisateur root :
+
+\vspace{3mm}
+\lstset{emph={sudo, chmod}}
+\begin{lstlisting}
+  $ sudo chmod +r /etc/ceph/ceph.client.admin.keyring
+\end{lstlisting}
+  
+On peut ensuite vérifier l'état du cluster, si tout les paramétres sont bon la commande suivante doit retourner \verb|HEALTH_OK|.
+\vspace{3mm}
+\begin{lstlisting}
+  $ ceph health
+\end{lstlisting}
+
+\subsubsection{Mise en place de CephFS}
+
+Dans cette partie, l'objectif est de mettre en place CephFS, afin de pouvoir déposer/récupérer des données dans le cluster Ceph, via un point de montage réseau.
+Pour rappel, notre nœud MDS s’appelle mds1. Les commandes du code \ref{listings-mds} vont, dans l'ordre, installer ceph sur la machine, définir le nœud comme étant un MDS, lui donner les droits d'administration, et enfin se connecter en SSH pour donner les droits en lecture sur le fichier de clé d'administration.
+
+\vspace{3mm}
+\lstset{emph={sudo, chmod, ssh}}
+\begin{lstlisting}[caption={Installation et mise en place de Ceph pour un MDS}, label={listings-mds},language=bash]
+  $ ceph-deploy install mds1
+  $ ceph-deploy mds create mds1
+  $ ceph-deploy admin mds1
+  $ ssh mds1
+  $ sudo chmod +r /etc/ceph/ceph.client.admin.keyring
+\end{lstlisting}
+
+La création de CephFS nécéssite la création de deux pools, une première sera appelée \verb|cephfsdatapool| et sert aux stockage des données, une seconde nommée \verb|cepfsmetadatapool| sert au stockage des métadonnées. La dernière commande permet le lancement du service CephFS. Le code \ref{listings-pools} montre ces commandes.
+
+\vspace{3mm}
+\begin{lstlisting}[caption={Création des pools},label=listings-pools,language=bash]
+  $ ceph osd pool create cephfsdatapool 128 128
+  $ ceph osd pool create metadatapool 128 128
+  $ ceph fs new cephfs0 cephfsmetadatapool cephfsdatapool
+  $ ceph fs ls // verifier que tout s'est bien passe
+\end{lstlisting}
+
+Avant de pouvoir utiliser CephFS, il faut créer un point de montage à partir duquel on pourra y accéder.
+\vspace{3mm}
+\lstset{emph={sudo,mkdir}}
+\begin{lstlisting}[language=bash]
+  $ sudo mkdir /mnt/cephfs
+\end{lstlisting}
+
+Ensuite, on récupère la clé du nœud administrateur (\verb|mon1|), que l'on va placer dans un fichier \verb|admin.secret|. Pour cela on utilise une regex sur le fichier de clé pour la récupérer.
+\vspace{3mm}
+\lstset{emph={cat,grep}}
+\begin{lstlisting}[language=bash]
+  $ cat /etc/ceph/ceph.client.admin.keyring | grep key | grep -o "[^$(printf '\t key = ')].*" > ~/ceph-cluster/admin.secret
+\end{lstlisting}
+
+On peut ensuite monter CephFS sur le dossier créé plus haut. L'adresse utilisée est celle du moniteur, le port est celui de cephfs par défaut.
+\vspace{3mm}
+\lstset{emph={sudo,mount}}
+\begin{lstlisting}[language=bash]
+  $ sudo mount -t ceph 172.23.2.17:6789:/ /mnt/cephfs -o name=mon1,secretfile=~/ceph-cluster/admin.secret
+\end{lstlisting}
+
+Pour utiliser CephFS, il faut utiliser le dossier présent dans \verb|/mnt/cephfs|. Pour valider le fonctionnement, il suffit de surveiller l'action du cluster après le dépôt d'un fichier.
+\vspace{3mm}
+\lstset{emph={sudo,ceph}}
+\begin{lstlisting}[language=bash]
+  $ ceph -w
+  $ sudo mv /path/to/some/file /mnt/cephfs/
+\end{lstlisting}
+
+
+\subsubsection{Autres commandes}
+
+Il est par exemple possible de créer de nouvelles pools via la commande :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd pool create <nom de la pool> <nombre de placement groups> <idem>
+\end{lstlisting}
+
+Voici un exemple de commande de création de pool :
+\vspace{3mm}
+\begin{lstlisting}[language=bash]
+  $ ceph osd pool create poule 128 128
+\end{lstlisting}
+
+Par défaut la pool crée est \og{}en mode\fg{} réplication, il est aussi possible de configurer la pool pour gérer les codes correcteurs d'erreurs. Il est également possible d'ajouter un objet manuellement dans une pool, comme suit :
+\vspace{3mm}
+\lstset{emph={rados,ceph}}
+\begin{lstlisting}[language=bash]
+  $ rados -p <nom de la pool> put <nom de l'objet> <nom du fichier>
+  $ ceph osd map <nom de la pool> <nom de l'objet>
+\end{lstlisting}
+
+
