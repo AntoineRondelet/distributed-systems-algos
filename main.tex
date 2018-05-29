@@ -1,0 +1,1266 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[francais]{babel}
+\usepackage[french,linesnumbered,algoruled]{algorithm2e}
+\usepackage{bbold}
+\usepackage{geometry}
+
+\geometry{top=5mm, bottom=5mm}
+
+\makeatletter
+\renewcommand{\algocf@captiontext}[2]{\AlCapNameSty{\centerline{\AlCapNameFnt{}#2}}}
+\makeatother
+
+\SetKw{si}{si}
+\SetKw{alors}{alors}
+\SetKw{finsi}{fin si}
+\SetKw{sinon}{sinon}
+\SetKw{pour}{pour}
+\SetKw{faire}{faire}
+\SetKw{finpour}{fin pour}
+\SetKw{envoyer}{envoyer}
+\SetKw{recevoir}{recevoir}
+\SetKw{et}{et}
+\SetKw{ou}{ou}
+\SetKw{tout}{tout}
+
+
+\begin{document}
+
+\section{Horloges}
+
+%% 16 algos
+
+Principe: L’horloge logique entière (H) date toute action avec une valeur entière supérieure à celle de toutes les actions qui la précèdent au sens de la causalité. Une valeur de date logique est attribuée à chaque action.
+L'horloge logique entière respecte les liens de causalités, ne permet pas d’obtenir une unique observation car l’ordre qu’elle induit sur les actions n’est pas total (on pourra intervertir les actions indépendantes comme on le souhaite pour construire des observations valides différentes). L'ordre construit par H est donc un ordre partiel puisque certaines actions (les actions indépendantes) ne sont pas comparables selon la relation d'ordre induite.
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Horloge entière, site $S_{i}$}
+
+\underline{initialisation} \;
+  \Indp
+  $h_{i} \gets 1$ \;
+  \Indm
+\underline{action interne} \;
+  \Indp
+  $h_{i} \gets h_{i} + 1$ \;
+  \Indm
+\underline{action d'émission} \;
+  \Indp
+  $h_{i} \gets h_{i} + 1$ \;
+  \envoyer($h_{i}$ ...) \;
+  \Indm
+\underline{action de réception} \;
+  \Indp
+  \recevoir(h ...) \;
+  $h_{i} \gets max(h, h_{i}) + 1$ \;
+  \Indm
+\end{algorithm}
+
+
+Principe: Alors de les horloges logiques entières H et la fonction d’estampillage K définissent chacune un ordre — partiel pour ≺H (actions indep. non comparables) et total pour ≺K (Même les actions indépendantes sont comparables; mais, on pert l'information de leur indépendance) — sur les actions du système, de telle sorte que ces ordres sont compatibles avec la relation de causalité, l'horloge vectorielle répond à un autre besoin que les estampilles pusiqu'elle permet de conserver l'information que 2 actions sont indépendances. L’idée de base sous-jacente à cette horloge consiste à utiliser le passé des actions pour les dater.
+Inconvénients: Si beaucoup de sites => grosse horloges => messages "lourds"
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Horloge vectorielle, site $S_{i}$}
+
+\underline{initialisation} \;
+  \Indp
+  $V_{i} \gets \mathbb{1}_{i}$\;
+  \Indm
+\underline{action interne} \;
+  \Indp
+  $V_{i} \gets V_{i} + \mathbb{1}_{i}$\;
+  \Indm
+\underline{action d'émission} \;
+  \Indp
+  $V_{i} \gets V_{i} + \mathbb{1}_{i}$\;
+  \envoyer($V_{i}$ ...) \;
+  \Indm
+\underline{action de réception} \;
+  \Indp
+  \recevoir(V ...) \;
+  $V_{i} \gets MAX(V, V_{i}) + \mathbb{1}_{i}$\;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Instantanés}
+
+Principe: Envoyer un marqueur (message spécial) aux sites pour les avertir de faire leur sauvegarde locale.
+
+Hypothèses:
+\begin{itemize}
+    \item Canaux de communication FIFO (pour s'assurer que l'on a pas de messages postpré)
+    \item Utilisation d'un marqueur pour séparer les messages envoyés en préclic des messages envoyés en postclic
+    \item Un site initiateur (le début de l'execution de l'algo se fait sur ordre de l'app. de base)
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Instantané avec marqueur, site $S_{i}$}
+\tcc*[h]{Canaux FIFO, utilise un marqueur}
+
+\underline{initialisation} \;
+  \Indp
+  $couleur_{i} \gets blanc$ \;
+  \Indm
+\underline{début de l'instantané} \;
+  \Indp
+  $couleur_{i} \gets rouge$ \;
+  \envoyer( [marqueur] ) aux voisins \;
+  \Indm
+\underline{réception d'un marqueur} \;
+  \Indp
+  \si $couleur_{i} == blanc$ \alors \;
+    \Indp
+    $couleur_{i} \gets rouge$ \;
+    \envoyer( [marqueur] ) aux voisins \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+Principe: L'application de contrôle ajoute une donnée (couleur) aux messages échangés par les applications de base.
+
+Hypothèses:
+\begin{itemize}
+    \item Canaux de communication NON FIFO
+    \item Les applications de base doivent générées suffisament de messages pour que la demande de sauvegarde se fasse bien au travers du réseau (si un site ne génère jamais de messages, ces voisins ne recevront jamais la demande de sauvegarde)
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Instantané avec lestage, site $S_{i}$}
+\tcc*[h]{Canaux non FIFO, algorithme de contrôle}
+
+\underline{initialisation} \;
+  \Indp
+  $couleur_{i} \gets blanc$ \;
+  \Indm
+\underline{début de l'instantané} \;
+  \Indp
+  $couleur_{i} \gets rouge$ \tcc*{sur un seul site}  
+  \Indm
+\underline{réception d'un message m de l'app. de base} \;
+  \Indp
+  \recevoir(m à destination de $S_{j}$) \;
+  \envoyer(m, $couleur_{i}$) à $S_{j}$ \;
+  \Indm
+\underline{réception d'un message de type m} \;
+  \Indp
+  \recevoir(m, c) \;
+  \si c == rouge \et $couleur_{i}$ == blanc \alors \;
+    \Indp
+    $couleur_{i} \gets rouge$ \;
+    \Indm
+  \finsi \;
+  traiter le message m \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\begin{algorithm}[h!]
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Instantané avec reconstitution de configuration, site $S_{i}$}
+\tcc*[h]{Réseau connexe non FIFO de N sites avec anneau de contrôle orienté}
+
+\underline{initialisation} \;
+  \Indp
+  $couleur_{i} \gets blanc$ \;
+  $initiateur_{i} \gets faux$ \;
+  $bilan_{i} \gets 0$ \;
+  $EG_{i} \gets \emptyset$ \;
+  \tcc*[h]{utilisé sur l'initiateur seulement :} \;
+  $NbEtatsAttendus_{i} \gets 0$ \;
+  $NbMsgAttendus_{i} \gets 0$ \;
+  \Indm
+\underline{début de l'instantané}   \tcc*{sur un seul site}
+  \Indp
+  $couleur_{i} \gets rouge$ \;
+  $initiateur_{i} \gets vrai$ \;  
+  $EG_{i} \gets $ état local courant \;
+  $NbEtatsAttendus_{i} \gets N - 1$ \;
+  $NbMsgAttendus_{i} \gets bilan_{i}$ \;
+  \Indm
+\underline{réception d'un message m de l'app. de base} \;
+  \Indp
+  \recevoir(m à destination de $S_{j}$) \;
+  \envoyer(m, $couleur_{i}$) à $S_{j}$ \;
+  $bilan_{i} \gets bilan_{i} + 1$ \;
+  \Indm
+\underline{réception d'un message de type m} \;
+  \Indp
+  \recevoir(m, c) \;
+  \si c == rouge \et $couleur_{i}$ == blanc \alors \;
+    \Indp
+    $couleur_{i} \gets rouge$ \;
+    $EG_{i} \gets $ état local courant \;
+    \envoyer( [état] EG, $bilan_{i}$ ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \si c == blanc \et $couleur_{i}$ == rouge \alors \tcc*{message prépost}
+    \Indp
+    \envoyer( [msg] m ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  $bilan_{i} \gets bilan_{i} - 1$ \;
+  traiter le message m \;
+  \Indm
+\underline{réception d'un message de type [état]} \tcc*{réception état local et bilan}
+  \Indp
+  \recevoir( [état] EG, bilan ) \;
+  \si $initiateur_{i}$ == vrai \alors \;
+    \Indp
+    $EG_{i} \gets EG_{i} \cup EG$ \;
+    $NbEtatsAttendus_{i} \gets NbEtatsAttendus_{i} - 1$ \;
+    $NbMsgAttendus_{i} \gets NbMsgAttendus_{i} + bilan$ \;
+    \si $NbEtatsAttendus_{i}$ == 0 \et $NbMsgAttendus_{i}$ == 0 \alors \;
+      \Indp
+      FIN \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [état] EG, $bilan$ ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message de type [msg]} \tcc*{réception message prépost retransmis}
+  \Indp
+  \recevoir( [msg] m ) \;
+  \si $initiateur_{i}$ == vrai \alors \;
+    \Indp
+    $NbMsgAttendus_{i} \gets NbMsgAttendus_{i} - 1$ \;
+    $EG_{i} \gets EG_{i} \cup m$ \;
+    \si $NbEtatsAttendus_{i}$ == 0 \et $NbMsgAttendus_{i}$ == 0 \alors \;
+      \Indp
+      FIN \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [msg] m ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+\newpage
+Principe: Appliquer des modifications successives à l'algorithme de lestage pour pouvoir rassurer les sauvegardes locales aux sites sur le site initiateur de la sauvegarde. Cet algorithme doit: collecter les différents états locaux + collecter les messages pré-post + inclure une condition de terminaison de l'algorithme portant sur le nombre d'états reçus + les sites doivent savoir combien de messages préposts sont attendus.
+
+Hypothèses:
+\begin{itemize}
+    \item Réseau connexe
+    \item N sites dans le réseau ET linitiateur le sait
+    \item Canaux de communication non FIFO
+    \item Anneau de contrôle orienté et passant par tous les sites (circuit hamiltonien) -> variable $succ_i$ sur chaque site ET cet anneau est déja établi.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{vagues/demi-vagues/ondes}
+
+Principe: Une demi-vague ne précise pas vers quels voisins elle doit progresser: la demi-vague ne progressera que vers une sélection de voisins. Cependant, sans connaissance de la topologie sous-jacente, il est préférable de propager la demi-vague vers tous les voisins pour s’assurer que tous les sites du réseau soient atteints. Note, il n’y a pas de variables $parent$. On s’occupe juste de 
+propager la demi vague à ses voisins (tous ses voisins pour être sûr que tous les sites soient atteints dans le cas où on ne connaît pas la topologie). Ici, on veut juste atteindre tous les sites.
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Demi-vague générique}
+
+\underline{initialisation} \;
+  \Indp
+  $couleur_{i} \gets blanc$ \;
+  \Indm
+\underline{début de la demi-vague}   \tcc*{sur l'initiateur}
+  \Indp
+  $couleur_{i} \gets bleu$  \tcc*{action de demi-vague}
+  sélection des voisins prévenus \;
+  \envoyer( [bleu] -) à ces voisins \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] -) de $S_{j}$ \;
+  \si $couleur_{i}$ == blanc \alors \;
+    \Indp
+    $couleur_{i} \gets bleu$  \tcc*{action de demi-vague}
+    sélection des voisins prévenus \;
+    \envoyer( [bleu] -) à ces voisins \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+Principe: Introduction d’une variable $parent$ pour retenir son site père et ainsi construire une arborescence. Ici, on fait l’algo de demi vague classique tout en changeant la variable couleur en une variable $parent$. On veut atteindre tous les noeuds, et, ce que l’on souhaite retenir comme valeur c’est la valeur de son père. C’est exactement le même algorithme !
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Arborescence couvrante}
+
+\underline{initialisation} \;
+  \Indp
+  $parent_{i} \gets 0$ \;
+  \Indm
+\underline{début de la diffusion}   \tcc*{sur l'initiateur}
+  \Indp
+  $parent_{i} \gets i$  \tcc*{action de demi-vague}
+  \envoyer( [bleu] -) à tous les voisins \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] -) de $S_{j}$ \;
+  \si $parent_{i}$ == 0 \alors \;
+    \Indp
+    $parent_{i} \gets j$  \tcc*{action de demi-vague}
+    \envoyer( [bleu] -) à tous les voisins \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+Principe: Une diffusion détermine une arborescence, dite arborescence de diffusion. La diffusion avec retour consiste à diffuser une valeur, puis à remonter l’information « diffusion terminée » depuis les feuilles de cette arborescence jusqu’à sa racine, c’est-à-dire l’initiateur. Un site attend donc autant de messages de retour qu’il a de fils dans l’arborescence.
+
+Notes:
+\begin{itemize}
+    \item Ici on utilise le fait que l'on ai construit une arborescence couvrante lors de la diffusion l'aller, pour l'utiliser pour les messages de retour. On doit donc utiliser la variable $parent$.
+    \item La variable $"NbVoisinsAttendus"$ sert a savoir lorsqu’un site a reçu tous les messages de retour, et donc, lorsqu’il peut envoyer son message de retour a son parent.
+    \item La définition de la vague n’impose pas aux messages de retour de suivre le cheminement inverse des messages aller. On pourrait donc définir des algorithmes de vague sur des réseaux dont les communications ne sont pas bidirectionnelles (La seule condition c'est que le site initiateur soit le decideur -> le retour se fait vers l'initiateur)
+    \item Comme pour la demi-vague, la définition d’une vague n’impose pas de diffuser les messages bleus à tous les voisins. Cependant, le choix des voisins doit être tel que tous les descendants de l’initiateur sont atteints
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Diffusion avec retour}
+
+\underline{initialisation} \;
+  \Indp
+  $parent_{i} \gets 0$ \;
+  $NbVoisinsAttendus_{i} \gets$ nb de voisins \;
+  \Indm
+\underline{début de la diffusion}   \tcc*{sur l'initiateur (détenteur de l'info)}
+  \Indp
+  $parent_{i} \gets i$ \;
+  \envoyer( [bleu] -) aux voisins \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] -) de $S_{j}$ \;
+  \si $parent_{i}$ == 0 \alors \;
+    \Indp
+    $parent_{i} \gets j$ \;
+    $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+    \si $NbVoisinsAttendus_{i}$ > 0 \alors \;
+      \Indp
+      \envoyer( [bleu] -) aux voisins sauf $S_{j}$ \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [rouge] -) à $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [rouge] ) à $S_{j}$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message rouge} \;
+  \Indp
+  \recevoir( [rouge] -) de $S_{j}$ \;
+  $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+  \si $NbVoisinsAttendus_{i}$ == 0 \alors \;
+    \Indp
+    \si $parent_{i}$ == i \alors \;
+      \Indp
+      FIN \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [rouge] -) à $S_{parent_{i}}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Parcours en profondeur}
+
+\underline{initialisation} \;
+  \Indp
+  $parent_{i} \gets 0$ \;
+  $n_{i} \gets 0$ \;
+  $VoisinsNonAtteints_{i} \gets$ ensemble des voisins \;
+  \Indm
+\underline{début de la demi-vague}   \tcc*{sur l'initiateur}
+  \Indp
+  $parent_{i} \gets i$ \;
+  $n_{i} \gets 1$ \;
+  \si $\exists S_{k} \in VoisinsNonAtteints_{i}$ \alors \;
+    \Indp
+    \envoyer( [bleu] 2) à un voisin $S_{j}$ \;
+    $VoisinsNonAtteints_{i} \gets VoisinsNonAtteints_{i} \backslash \{ S_{j}\} $ \;
+    \Indm
+  \sinon \;
+    \Indp
+    FIN \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] p) de $S_{j}$ \;
+  \si $parent_{i} \neq  0$ \alors \;
+    \Indp
+    \envoyer( [rouge] p ) à $S_{j}$  \tcc*{site déjà visité}
+    \Indm
+  \sinon \;
+    \Indp
+    $n_{i} \gets p$ \;
+    $parent_{i} \gets j$ \;
+    $VoisinsNonAtteints_{i} \gets VoisinsNonAtteints_{i} \backslash \{ S_{j}\} $ \;
+    \si $\exists S_{k} \in VoisinsNonAtteints_{i}$ \alors \;
+      \Indp
+      \envoyer( [bleu] p + 1) à $S_{k}$ \;
+      $VoisinsNonAtteints_{i} \gets VoisinsNonAtteints_{i} \backslash \{ S_{k}\} $ \;
+      \Indm
+    \sinon \tcc*{tous les voisins ont été visités}
+      \Indp
+      \envoyer( [rouge] p + 1) à $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message rouge} \;
+  \Indp
+  \recevoir( [rouge] p) de $S_{j}$ \;
+  \si $\exists S_{k} \in VoisinsNonAtteints_{i}$ \alors \;
+    \Indp
+    \envoyer( [bleu] p ) à $S_{k}$ \;
+    $VoisinsNonAtteints_{i} \gets VoisinsNonAtteints_{i} \backslash \{ S_{k}\} $ \;
+    \Indm
+  \sinon \tcc*{tous les voisins ont été visités}
+    \Indp
+    \si $parent_{i} \neq i$ \alors \;
+      \Indp
+      \envoyer( [rouge] p) à $S_{parent_{i}}$ \;
+      \Indm
+    \sinon \;
+      \Indp
+      FIN \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+Principe: Le calcul ne sera pas entièrement réalisé sur l’initiateur ; il sera réalisé partiellement sur chaque site recevant des messages. Le calcul global se décompose en calculs intermédiaires ne faisant intervenir que deux valeurs (la valeur courante du site, et celle reçue avec un message) + on ne peut prédire l’ordre dans lequel se feront les calculs intermédiaires. Le calcul d’une valeur dans un réseau peut être réalisé par une vague, basée sur l’algorithme de la diffusion avec retour
+
+Hyptohèses:
+\begin{itemize}
+    \item L’opérateur doit admettre certaines propriétés pour garantir un calcul correcte: binaire , associatif et commutatif. Si l'opérateur n'est pas idempotent => prendre des précautions supplémentaires.
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Calcul d'une valeur par une vague avec l'opérateur $\odot$ }
+
+\underline{initialisation} \;
+  \Indp
+  $parent_{i} \gets 0$ \;
+  $NbVoisinsAttendus_{i} \gets$ nb de voisins \;
+  $valeur_{i} \gets$ valeur quelconque, selon le calcul à effectuer \;
+  \Indm
+\underline{début du calcul}   \tcc*{sur l'initiateur}
+  \Indp
+  $parent_{i} \gets i$ \;
+  \envoyer( [bleu] -) aux voisins \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] -) de $S_{j}$ \;
+  \si $parent_{i}$ == 0 \alors \;
+    \Indp
+    $parent_{i} \gets j$ \;
+    $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+    \si $NbVoisinsAttendus_{i}$ == 0 \alors\tcc*{pas d'autre fils, retour direct}
+      \Indp
+      \envoyer( [rouge] $valeur_{i}$) à $S_{j}$ \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [bleu] ) aux voisins sauf $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \tcc*{la vague a déjà été reçue}
+    \Indp
+    \envoyer( [orange] ) à $S_{j}$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message rouge} \;
+  \Indp
+  \recevoir( [rouge] k) de $S_{j}$ \;
+  $valeur_{i} \gets valeur_{i} \odot k$ \;
+  $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+  \si $NbVoisinsAttendus_{i}$ == 0 \alors \;
+    \Indp
+    \si $parent_{i}$ == i \alors \;
+      \Indp
+      FIN \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [rouge] $valeur_{i}$) à $S_{parent_{i}}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message orange} \tcc*{pas de calcul}
+  \Indp
+  \recevoir( [orange] ) de $S_{j}$ \;
+  $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+  \si $NbVoisinsAttendus_{i}$ == 0 \alors \;
+    \Indp
+    \si $parent_{i}$ == i \alors \;
+      \Indp
+      FIN \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [rouge] $valeur_{i}$) à $S_{parent_{i}}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+Principe: Les ondes correspondent à des explorations de réseaux qui, dans leur définition, sont plus générales que les vagues : l’onde remonte vers un site qui n’est pas obligatoirement l’initiateur. Les messages de retour ne suivent pas le cheminement inverse des messages aller, et les hypothèses sur le réseau sont plus faibles
+
+\subsection{Onde sur un anneau}
+Lorsque le réseau est un anneau (ou bien lorsqu’on dispose d’un anneau de contrôle dans un réseau quelconque), on peut mettre à profit cette connaissance de la topologie pour éviter d’utiliser une vague, qui oblige les messages à rebrousser chemin vers l’initiateur au lieu de poursuivre le tour de l’anneau.
+
+\subsection{Onde sur un arbre}
+Lorsque le réseau est un arbre (ou bien lorsqu’on dispose d’un arbre couvrant dans un réseau quelconque), on peut aisément parcourir le réseau (pour centraliser une information, calculer une valeur, etc.) en propageant l’exploration depuis les feuilles vers le «cœur» de l’arbre. Ce type d’exploration est une onde dont les initiateurs sont les feuilles, et dont au moins l’un des sites dans le réseau sera le décideur 
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Onde sur un arbre, 1ère version}
+
+\underline{initialisation} \;
+  \Indp
+  $PèresPossibles_{i} \gets$ ensemble des voisins \;
+  $OndePartie_{i} \gets$ faux \;
+  \Indm
+\underline{réception d'un message} \;
+  \Indp
+  \recevoir( -- ) de $S_{j}$ \;
+  $PèresPossibles_{i} \gets PèresPossibles_{i} \setminus \{ S_{j} \} $ \;
+  \Indm
+\underline{| $PèresPossibles_{i}$ | == 1 \et $OndePartie_{i}$ == faux} \;
+  \Indp
+  \tcc*[h]{Action d'onde} \;
+  \envoyer( -- ) aux voisins dans $PèresPossibles_{i}$ \;
+  $OndePartie_{i} \gets$ vrai \;
+  \Indm
+\underline{$| PèresPossibles_{i} |$ == 0} \;
+  \Indp
+  \tcc*[h]{Fin de l'onde} \;
+  \tcc*[h]{Action de décision} \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Elections}
+
+Principe: Les candidatures des sites sont envoyées sur l'anneau. Une liste de toutes les candidatures est faite. Une fois que cette liste est conçue, chaque site calcule le minimum de la liste => le minimum = ID du site élu.
+
+Hypothèses:
+\begin{itemize}
+    \item Le réseau est un anneau orienté
+    \item Les communications sont FIFO
+    \item Le nombre de sites dans le réseau est inconnu
+    \item Le site ayant la plus petite identité gagne => tous les candidats connaissent l'identité du gagnant.
+    \item 3 états possibles pour un site: En-attente, élu, perdu
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Election par constitution de la liste des candidats}
+
+\underline{initialisation} \;
+  \Indp
+  $Etat_{i} \gets$ non défini \;
+  $ListeCandidats_{i} \gets \emptyset $\;
+  \Indm
+\underline{début de l'élection} \;
+  \Indp
+  \si $Etat_{i}$ == non défini \alors \;
+    \Indp
+    $Etat_{i} \gets$ candidat \;
+    $ListeCandidats_{i} \gets \{ i \} $\;
+    \envoyer( i ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message} \;
+  \Indp
+  \recevoir( j ) \;
+  \si $Etat_{i}$ == candidat \alors \;
+    \Indp
+    \si j == i \alors \;
+      \Indp
+      \si i == min $ListeCandidats_{i}$ \alors \;
+        \Indp
+        $Etat_{i} \gets$ élu \;
+        \Indm
+      \sinon \;
+        \Indp
+        $Etat_{i} \gets$ perdu \;
+        \Indm
+      \finsi \;
+      \Indm
+    \sinon \;
+      \Indp
+      $ListeCandidats_{i} \gets ListeCandidats_{i} \cup \{ j \} $ \;
+      \envoyer( j ) sur l'anneau \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    $Etat_{i} \gets$ perdu \;
+    \envoyer( j ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+
+Principe: Cet algo utilise le fait qu'il est possible de calculer une valeur sur le réseau avec une onde si l'opérateur est binaire associatif et commutatif. Ici, on cherche donc à calculer le minimum des IDs, NON PLUS APRES que la liste des candidats ai été faite, MAIS plutot, au fur et à mesure que l'algo est executé => il n'est plus necessaire de stcoker la liste des candidats. Seul le meilleur candidat (au moment de la reception de la candidature, est conservé).
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Election par calcul du minimum}
+
+\underline{initialisation} \;
+  \Indp
+  $Elu_{i} \gets +\infty$ \;
+  \Indm
+\underline{début de l'élection} \;
+  \Indp
+  \si $Elu_{i} == +\infty $ \alors \;
+    \Indp
+    $Elu_{i} \gets$ i \;
+    \envoyer( i ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message} \;
+  \Indp
+  \recevoir( j ) \;
+  \si j == i \alors \;
+    \Indp
+    FIN \tcc*{$S_{i}$ est élu}
+    \Indm
+  \si j < $Elu_{i}$ \alors \;
+    \Indp
+    $Elu_{i} \gets$ j \;
+    \envoyer( j ) sur l'anneau \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+Hypothèses:
+\begin{itemize}
+    \item Communications bi-directionnelles
+    \item Il n'existe pas d'anneau de contrôle permettant d'appliquer les algos précédents
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Election dans un réseau quelconque -- version centralisée}
+
+\underline{initialisation} \;
+  \Indp
+  $Parent_{i} \gets 0$ \;
+  $NbMessagesAttendus_{i} \gets$ nb de voisins \;
+  $Elu_{i} \gets +\infty$ \;
+  \Indm
+\underline{début de la vague} \;
+  \Indp
+  $Elu_{i} \gets i$ \;
+  $Parent_{i} \gets i$ \;
+  \envoyer( [bleu] ) aux voisins \;
+  \Indm
+\underline{début de l'élection} \;
+  \Indp
+  \si $Parent_{i} == 0$ \alors \;
+    \Indp
+    $Elu_{i} \gets i$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] ) de $S_{j}$\;
+  \si $Parent_{i}$ == 0 \alors \;
+    \Indp
+    $Parent_{i} \gets j$ \;
+    $NbMessagesAttendus_{i} \gets NbMessagesAttendus_{i} - 1$ \;
+    \si $NbMessagesAttendus_{i}$ == 0 \alors \;
+      \Indp
+      \envoyer( [rouge] $Elu_{i}$ ) à $S_{parent_{i}}$ \;
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [bleu] ) aux voisins sauf $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [rouge] $Elu_{i}$ ) à $S_{j}$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message rouge} \;
+  \Indp
+  \recevoir( [rouge] $Elu$ ) \;
+  $Elu_{i} \gets $ min($Elu, Elu_{i}$) \;
+  $NbMessagesAttendus_{i} \gets NbMessagesAttendus_{i} - 1$ \;
+  \si $NbMessagesAttendus_{i}$ == 0 \alors \;
+    \Indp
+    \si $Parent_{i}$ == i \alors \;
+      \Indp
+      FIN \tcc*{l'élu est $S_{élu_{i}}$)}
+      \Indm
+    \sinon \;
+      \Indp
+      \envoyer( [rouge] $Elu_{i}$ ) \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\newpage
+
+Principe: Cet algo vise à faire partir une vague depuis chaque site candidat. Lorsqu’un site reçoit plusieurs vagues, il choisit celle du candidat d’identité la plus petite. C’est la technique dite d’extinction. Si un site est atteint par au moins une vague, il ne peut plus devenir candidat et lancer sa propre vague.
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Election par extinction (version décentralisée)}
+
+\underline{initialisation} \;
+  \Indp
+  $Parent_{i} \gets 0$ \;
+  $NbVoisinAttendus_{i} \gets$ nb de voisins \;
+  $Elu_{i} \gets +\infty$ \;
+  \Indm
+\underline{début de la vague} \tcc*{sur les sites candidats}
+  \Indp
+  \si $Parent_{i}$ == 0 \alors \;
+    \Indp
+    $Elu_{i} \gets i$ \;
+    $Parent_{i} \gets i$ \;
+    \envoyer( [bleu] $Elu_{i}$ ) \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message bleu} \;
+  \Indp
+  \recevoir( [bleu] k ) de $S_{j}$ \;
+  \si $Elu_{i}$ > k \alors \;
+    \Indp
+    $Elu_{i} \gets k$ \;
+    \tcc*[h]{on oublie la vague en cours, s'il y en avait une} \;
+    $Parent_{i} \gets j$ \;
+    $NbVoisinAttendus_{i} \gets$ nb de voisins - 1 \;
+    \si $NbVoisinAttendus_{i}$ > 0 \alors \tcc*{diffuser une nouvelle vague}
+      \Indp
+      \envoyer( [bleu] $Elu_{i}$ ) aux voisins sauf $S_{j}$ \;
+      \Indm
+    \sinon \tcc*{la vague remonte}
+      \Indp
+      \envoyer( [rouge] $Elu_{i}$ ) à $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \sinon \;
+    \Indp
+    \si $Elu_{i}$ == k \alors \;
+      \Indp
+      \envoyer( [rouge] $Elu_{i}$ ) à $S_{j}$ \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un message rouge} \;
+  \Indp
+  \recevoir( [rouge] k ) \;
+  \si $Elu_{i}$ == k \alors \;
+    \Indp
+    $NbVoisinsAttendus_{i} \gets NbVoisinsAttendus_{i} - 1$ \;
+    \si $NbVoisinsAttendus_{i}$ == 0 \alors \;
+      \Indp
+      \si $Elu_{i}$ == i \alors \;
+        \Indp
+        FIN \tcc*{l'élu est $S_{élu_{i}}$}
+        \Indm
+      \sinon \;
+        \Indp
+        \envoyer( [rouge] $Elu_{i}$ ) à $S_{parent_{i}}$ \;
+        \Indm
+      \finsi \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Détection de terminaisons}
+
+
+Principe: La technique des calculs diffus s’apparente à une vague centralisée. L’arborescence est mouvante : elle est construite et modifiée au gré des activations et désactivations des sites. Ici, ce ne sont pas les voisins qui sont attendus, mais les accusés de réception. Ceux-ci remontent l’arborescence au fur et à mesure que ses extrémités se «fanent». En quelque sorte, les messages rouges sont toujours envoyés par des sites feuilles, avant qu’ils ne quittent l’arborescence. Quand la racine est fanée, l’application est terminée. Ce mécanisme de terminaison est valable pour un unique initiateur.
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Algorithme de contrôle implémentant la méthode de détection de terminaison des calculs diffus}
+
+\underline{initialisation} \;
+  \Indp
+  $Parent_{i} \gets 0$ \;
+  $bilan_{i} \gets 0$ \;
+  $passif_{i} \gets$ vrai \;
+  \Indm
+\underline{début d'activité} \tcc*{sur un seul site}
+  \Indp
+  $Parent_{i} \gets i$ \;
+  $passif_{i} \gets$ faux \;
+  \Indm
+\underline{fin d'activité de l'instance locale de l'app. de base} \;
+  \Indp
+  $passif_{i} \gets$ vrai \;
+  \Indm
+\underline{émission d'un message m par l'instance locale de l'app. de base} \;
+  \Indp
+  $bilan_{i} \gets bilan_{i} + 1$ \;
+  \envoyer( [msg] m ) \;
+  \Indm
+\underline{réception d'un message lié à l'app. de base} \;
+  \Indp
+  \recevoir( [msg] m ) de $S_{j}$ \;
+  \si $Parent_{i}$ == 0 \alors \tcc*{message de réveil}
+    \Indp
+    $passif_{i} \gets$ faux \;
+    $Parent_{i} \gets j$ \;
+    \Indm
+  \sinon \tcc*{message tout de suite acquitté}
+    \Indp
+    \envoyer( [acquittement] ) à $S_{j}$ \;
+    \Indm
+  \finsi \;
+  transmettre le message à l'app. de base locale \;
+  \Indm
+\underline{réception d'un acquittement} \;
+  \Indp
+  \recevoir( [acquittement] ) \;
+  $bilan_{i} \gets bilan_{i} - 1$ \;
+  \Indm
+\underline{($passif_{i}$ == vrai) \et ($bilan_{i}$ == 0) \et ($Parent_{i} \neq 0$)} \;
+  \Indp
+  \tcc*[h]{il faut quitter l'arborescence} \;
+  \si $Parent_{i}$ == i \alors \;
+    \Indp
+    FIN \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [acquittement] ) à $S_{parent_{i}}$ \;
+    $Parent_{i} \gets 0$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+Principe: Maintenir, sur chaque site $S_j$, un vecteur d’entiers relatifs dont la $k^eme$ composante représente le nombre de message emis vers le site $k$. De même, la $j^eme$ composante représente l'opposé du nombre de messages reçus par $Sj$. Il est necessaire de gérer les court-circuits du jeton par des messages de «réveil», réactivant les sites après que le jeton les aient trouvés inactifs. Lorsque le jeton arrive sur un site actif, il est arreté. Il est donné au noeud suivant que lorsque le site courant est devenu passif (lorsque le jeton est donné au site suivant, alors le compteur local du site est remit à zéro). Lorsque l'application est terminée, toutes les composantes du jeton-vecteur sont nulles.
+
+Avantages: Cette technique est rapide. Il ne faut qu'un seul tour d’anneau pour permettre au dernier site ayant bloqué le jeton de conclure à la terminaison.
+
+Inconvénients: Cette technique est gourmande en place memoire
+
+Hypothèses:
+\begin{itemize}
+    \item Anneau de contrôle (circuit hamiltonien)
+\end{itemize}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Jeton-vecteur}
+
+\underline{initialisation} \;
+  \Indp
+  \pour k = 1 à N \faire \;
+    \Indp
+    $V_{i}[k] \gets 0$ \;
+    $VJ_{i}[k] \gets 0$ \;
+    \Indm
+  \finpour \;
+  $passif_{i} \gets$ vrai \;
+  $jetonPresent_{i} \gets$ faux \;
+  $jetonTransmis_{i} \gets$ faux \;
+  \Indm
+\underline{début d'activité de l'instance locale de l'app. de base} \;
+  \Indp
+  $passif_{i} \gets$ faux \;
+  \Indm
+\underline{fin d'activité de l'instance locale de l'app. de base} \;
+  \Indp
+  $passif_{i} \gets$ vrai \;
+  \Indm
+\underline{départ du jeton} \;
+  \Indp
+  \pour k = 1 à N \faire \;
+    \Indp
+    $VJ_{i}[k] \gets VJ_{i}[k] + V_{i}[k]$ \;
+    $V_{i}[k] \gets 0$ \;
+    \Indm
+  \finpour \;
+  $jetonTransmis_{i} \gets$ vrai \;
+  \envoyer( [jeton] $VJ_{i}$ ) au successeur sur l'anneau \;
+  \Indm
+\underline{demande d'émission d'un message m vers $S_{j}$ par l'instance locale de l'app. de base} \;
+  \Indp
+  $V_{i}[j] \gets V_{i}[j] + 1$ \;
+  \envoyer( m ) à $S_{j}$ \;
+  \Indm
+\underline{réception d'un message m} \;
+  \Indp
+  \recevoir( m ) \;
+  $V_{i}[i] \gets V_{i}[i] - 1$ \;
+  transmettre le message à l'app. de base \;
+  \Indm
+\underline{réception du jeton} \;
+  \Indp
+  \recevoir( [jeton] VJ ) \;
+  $VJ_{i} \gets$ VJ \;
+  $jetonPresent_{i} \gets $ vrai \;
+  \Indm
+\underline{($jetonPresent_{i}$ == vrai) \et ($passif_{i}$ == vrai)} \;
+  \Indp
+  \pour k = 1 à N \faire \;
+    \Indp
+    $VJ_{i}[k] \gets VJ_{i}[k] + V_{i}[k]$ \;
+    $V_{i}[k] \gets 0$ \;
+    \Indm
+  \finpour \;
+  \si ($jetonTransmis_{i}$ == vrai) \et ($VJ_{i}[k]$ == 0 $\forall k, 1 \leq k \leq N$) \alors \;
+    \Indp
+    FIN pour $S_{i}$ \;
+    \Indm
+  \finsi \;
+  \envoyer( [jeton] $VJ_{i}$ ) au successeur sur l'anneau \;
+  $jetonPresent_{i} \gets$ faux \;
+  $jetonTransmis_{i} \gets$ vrai \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+\section{Detection des interblocages}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Détection de l'interblocage dans le contexte général -- Application de base}
+
+\underline{initialisation} \;
+  \Indp
+  $NumRequête_{i} \gets$ 0 \;
+  \Indm
+\underline{émission d'une requête} \;
+  \Indp
+  $NbRépAttendues_{i} \gets$ nb de destinataires \;
+  $P_{i} \gets$ prédicat correspondant à la réponse attendue \;
+  $RépR_{i} \gets \emptyset$  \;
+  $ReqR_{i} \gets \emptyset$  \;
+  $Etat_{i} \gets$ en\_attente  \;
+  $NumRequête_{i}$++ \;
+  \envoyer( i, requête, p ) aux destinaires \;
+  \Indm
+\underline{réception d'une requête} \;
+  \Indp
+  \recevoir(j, requête, p) \;
+  \si $Etat_{i} \neq $ en\_attente \alors \;
+    \Indp
+    \envoyer( réponse, q ) à $S_{j}$ \;
+    \Indm
+  \sinon \;
+    \Indp
+    $ReqR_{i} \gets ReqR_{i} \cup \langle j, requête, q \rangle $  \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'une réponse} \;
+  \Indp
+  \recevoir( réponse, q ) \;
+  \si q == $NumRequête_{i}$ \et $Etat_{i}$ == en\_attente \alors \;
+    \Indp
+    $NbRépAttendues_{i}$- - \;
+    $RépR_{i} \gets RépR_{i} \cup \{ réponse \} $ \;
+    \si $P_{i}(RépR_{i})$ \ou $NbRépAttendues_{i}$ == 0 \alors \;
+      \Indp
+      $Etat_{i} \gets$ actif \;
+      \pour \tout $\langle j, requête, q \rangle \in ReqR_{i}$ \faire \;
+        \Indp
+        \envoyer( réponse, q ) à $S_{j}$ \;
+        \Indm
+      \finpour \;
+      \Indm
+    \finsi \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\clearpage
+\section{Exclusion mutuelle}
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Exclusion mutuelle avec permission individuelle, site $S_{i}$}
+\tcc*[h]{$Attendus_{i} = \{ S_{1}, ..., S_{N} \} $}
+
+\underline{initialisation} \;
+  \Indp
+  $RéponsesDifférées_{i} \gets \emptyset $ \tcc*{requêtes en souffrance}
+  $Reçus_{i} \gets \emptyset $ \tcc*{autorisations reçues}
+  $h_{i} \gets$ 0 \;
+  $hdem_{i} \gets$ 0 \tcc*{date de la dernière demande}
+  $état_{i} \gets$ repos \;
+  \Indm
+\underline{réception demande de section critique} \;
+  \Indp
+  \recevoir( [demandeSC] ) de l'app. de base \;
+  $h_{i} \gets h_{i}$ + 1 \;
+  $hdem_{i} \gets h_{i}$ \;
+  $état_{i} \gets$ demandeur \;
+  \envoyer( [requête] $h_{i}$ ) à tous les sites sauf $S_{i}$ \;
+  $Reçus_{i} \gets \emptyset$ \;
+  \Indm
+\underline{réception fin de section critique} \;
+  \Indp
+  \recevoir( [finSC] ) de l'app. de base \;
+  $h_{i} \gets h_{i}$ + 1 \;
+  \pour \tout $S_{k} \in RéponsesDifférées_{i}$ \faire \;
+    \Indp
+    \envoyer( [permission] $h_{i}$ ) à $S_{k}$ \;
+    \Indm
+  \finpour \;
+  $état_{i} \gets$ repos \;
+  $RéponsesDifférées_{i} \gets \emptyset$ \;
+  \Indm
+\underline{réception d'une requête} \;
+  \Indp
+  \recevoir( [requête] h ) de $S_{j}$ \;
+  $h_{i} \gets max(h_{i}, h)$ + 1 \;
+  \si ($état_{i} \neq $ repos) \et (($hdem_{i}, i$) $<_{2}$ (h, j)) \alors \;
+    \Indp
+    $RéponsesDifférées_{i} \gets RéponsesDifférées_{i} \cup \{ S_{j} \} $ \;
+    \Indm
+  \sinon \;
+    \Indp
+    \envoyer( [permission] $h_{i}$ ) à $S_{j}$ \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'une permission} \;
+  \Indp
+  \recevoir( [permission] h ) de $S_{j}$ \;
+  $h_{i} \gets max(h_{i}, h)$ + 1 \;
+  $Reçus_{i} \gets Reçus_{i} \cup \{ S_{j} \} $ \;
+  \si ($Reçus_{i} == Attendus_{i}$) \alors \;
+    \Indp
+    \envoyer( [débutSC] ) à l'app. de base \;
+    $état_{i} \gets$ satisfait \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{algorithm}
+\DontPrintSemicolon
+\SetAlgoVlined
+\LinesNumbered
+
+\caption{Exclusion mutuelle avec répartition d'une file d'attente, site $S_{i}$}
+
+\underline{initialisation} \;
+  \Indp
+  $Tab_{i}[k] \gets$ (libération, 0) pour tout $k \in \{ 1,...,N \} $ \;
+  $h_{i} \gets$ 0 \;
+  \Indm
+\underline{réception demande de section critique} \;
+  \Indp
+  \recevoir( [demandeSC] ) de l'app. de base \;
+  $h_{i} \gets h_{i}$ + 1 \;
+  $Tab_{i}[i] \gets$ (requête, $h_{i}$) \;
+  \envoyer( [requête] $h_{i}$ ) à tous les autres sites \;
+  \Indm
+\underline{réception fin de section critique} \;
+  \Indp
+  \recevoir( [finSC] ) de l'app. de base \;
+  $h_{i} \gets h_{i}$ + 1 \;
+  $Tab_{i}[i] \gets$ (libération, $h_{i}$) \;
+  \envoyer( [libération] $h_{i}$ ) à tous les autres sites \;
+  \Indm
+\underline{réception d'une requête} \;
+  \Indp
+  \recevoir( [requête] h ) de $S_{j}$ \;
+  $h_{i} \gets max(h_{i}, h)$ + 1 \;
+  $Tab_{i}[j] \gets$ (requête, $h$) \;
+  \envoyer( [accusé] $h_{i}$ ) à $S_{j}$ \;
+  \si ($Tab_{i}[i].type$ == requête) \et (($Tab_{i}[i].date$, i) $<_{2}$ ($Tab_{i}[k].date$, k) pour tout k $\neq$ i) \alors \;
+    \Indp
+    \envoyer( [débutSC] ) à l'app. de base \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'une libération} \;
+  \Indp
+  \recevoir( [libération] h ) de $S_{j}$ \;
+  $h_{i} \gets max(h_{i}, h)$ + 1 \;
+  $Tab_{i}[j] \gets$ (libération, $h$) \;
+  \si ($Tab_{i}[i].type$ == requête) \et (($Tab_{i}[i].date$, i) $<_{2}$ ($Tab_{i}[k].date$, k) pour tout k $\neq$ i) \alors \;
+    \Indp
+    \envoyer( [débutSC] ) à l'app. de base \;
+    \Indm
+  \finsi \;
+  \Indm
+\underline{réception d'un accusé} \;
+  \Indp
+  \recevoir( [accusé] h ) de $S_{j}$ \;
+  $h_{i} \gets max(h_{i}, h)$ + 1 \;
+  \si $Tab_{i}[j].type \neq $ requête \alors \;
+    \Indp
+    $Tab_{i}[j] \gets$ (accusé, $h$) \;
+    \Indm
+  \finsi \;
+  \si ($Tab_{i}[i].type$ == requête) \et (($Tab_{i}[i].date$, i) $<_{2}$ ($Tab_{i}[k].date$, k) pour tout k $\neq$ i) \alors \;
+    \Indp
+    \envoyer( [débutSC] ) à l'app. de base \;
+    \Indm
+  \finsi \;
+  \Indm
+\end{algorithm}
+
+\end{document}
